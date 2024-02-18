@@ -1,143 +1,170 @@
-// Importando bibliotecas e componentes necessários
-import { Play } from "phosphor-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { differenceInSeconds} from "date-fns";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as zod from "zod";
-import { CountDownContainer, FormContainer, HomeContainer, MinutosAmountInput, Separator, StartCountDownButton, TaskInput } from "./styles";
+// Importa os ícones de HandPalm e Play da biblioteca Phosphor React
+import { HandPalm, Play } from 'phosphor-react'
+// Importa utilitários do react-hook-form para gerenciar formulários
+import { FormProvider, useForm } from 'react-hook-form'
+// Importa o resolver de validação zod do hookform
+import { zodResolver } from '@hookform/resolvers/zod'
+// Importa a biblioteca de validação Zod
+import * as zod from 'zod'
+// Importa createContext e useState do React
+import { createContext, useState } from 'react'
 
-// Definindo o esquema de validação para os campos do formulário
-const newCycleValidationFormSchema = zod.object({
-    task: zod.string().min(1, "Informe a tarefa"), // Campo 'task' deve ser uma string com pelo menos 1 caractere
-    minutesAmount: zod.number().min(5, "O intervalo deve ser de pelo menos 5 minutos").max(60) // Campo 'minutesAmount' deve ser um número entre 5 e 60
-});
+// Importa os estilos e componentes do arquivo styles.js
+import {
+  HomeContainer,
+  StartCountDownButton,
+  StopCountDownButton,
+} from './styles'
+// Importa o componente NewCycleForm do arquivo components/NewCycleForm.js
+import { NewCycleForm } from './components/NewCycleForm'
+// Importa o componente Countdown do arquivo components/CountDown.js
+import { Countdown } from './components/CountDown'
 
-// Tipo de dados para o formulário de novo ciclo
-type NewCycleFormData = zod.infer<typeof newCycleValidationFormSchema>;
-
-// Interface para representar um ciclo
+// Define a interface Cycle para tipar os ciclos de trabalho
 interface Cycle {
-    id: string,
-    task: string,
-    minutesAmount: number,
-    startDate: Date
+  id: string
+  task: string
+  minutesAmount: number
+  startDate: Date
+  interruptedDate?: Date
+  finishedDate?: Date,
 }
 
-// Definindo o componente funcional Home
+// Define a interface CycleContextType para tipar o contexto dos ciclos de trabalho
+interface CycleContextType {
+  activeCycle:Cycle | undefined,
+  activeCycleId:string | null,
+  markCurrentCycleAsFinished: ()=> void,
+  amountSecondsPassed:number,
+  setSecondsPassed:(seconds:number)=> void
+}
+
+// Define o esquema de validação para o formulário de criação de novo ciclo
+const newCycleFormValidationSchema = zod.object({
+  task: zod.string().min(1, 'Informe a tarefa'),
+  minutesAmount: zod
+    .number()
+    .min(5, 'O ciclo precisa ser de no mínimo 5 minutos.')
+    .max(60, 'O ciclo precisa ser de no máximo 60 minutos.'),
+})
+
+// Define o tipo dos dados do formulário de criação de novo ciclo
+type NewCycleFormData = zod.infer<typeof newCycleFormValidationSchema>
+
+// Cria um contexto para compartilhar informações sobre os ciclos de trabalho
+export const cycleContext = createContext({} as CycleContextType)
+
+// Componente principal da aplicação
 export function Home() {
-    // Estado para armazenar os ciclos
-    const [cycles, setCycles] = useState<Cycle[]>([]);
-    // Estado para armazenar o ID do ciclo ativo
-    const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
-    // Estado para armazenar a quantidade de segundos passados
-    const [amountSecondsPassed, setAmountSecondsPassed] = useState(0);
+  // Estado para armazenar os ciclos de trabalho
+  const [cycles, setCycles] = useState<Cycle[]>([])
+  // Estado para armazenar o ID do ciclo ativo
+  const [activeCycleId, setActiveCycleId] = useState<string | null>(null)
+  // Estado para armazenar a quantidade de segundos passados
+  const [amountSecondsPassed, setAmountSecondsPassed] = useState(0)
 
-    // Desestruturação do hook useForm para obter os métodos necessários
-    const { register, handleSubmit, watch, reset } = useForm<NewCycleFormData>({
-        resolver: zodResolver(newCycleValidationFormSchema),
-        defaultValues: {
-            task: "",
-            minutesAmount: 0
+  // Encontra o ciclo ativo com base no ID
+  const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
+
+  // Hook useForm para gerenciar o formulário de criação de novo ciclo
+  const newCycleForm = useForm<NewCycleFormData>({
+    resolver: zodResolver(newCycleFormValidationSchema),
+    defaultValues: {
+      task: '',
+      minutesAmount: 0,
+    },
+  })
+
+  const {handleSubmit, watch, reset } = newCycleForm
+
+  // Função para marcar o ciclo atual como terminado
+  function markCurrentCycleAsFinished(){
+    // Atualiza o estado dos ciclos marcando o ciclo atual como terminado
+    setCycles((state) =>
+      state.map((cycle) => {
+        if (cycle.id === activeCycleId) {
+          return { ...cycle, finishedDate: new Date() }
+        } else {
+          return cycle
         }
-    });
+      }),
+    )
+  }
 
-    function handleCreateNewCycle(data: NewCycleFormData) {
-        const id = String(new Date().getTime());
-        const newCycle: Cycle = {
-            id: id,
-            task: data.task,
-            minutesAmount: data.minutesAmount,
-            startDate: new Date()
-        };
-        setCycles(prev => [...prev, newCycle]);
-        setActiveCycleId(id);
-        reset();
+  // Função para criar um novo ciclo de trabalho
+  function handleCreateNewCycle(data: NewCycleFormData) {
+    // Gera um ID para o novo ciclo
+    const id = String(new Date().getTime())
+    // Cria um novo ciclo com os dados do formulário
+    const newCycle: Cycle = {
+      id,
+      task: data.task,
+      minutesAmount: data.minutesAmount,
+      startDate: new Date(),
     }
-     // Obtendo o ciclo ativo
-    const activeCycle = cycles.find(cycle => cycle.id === activeCycleId);
-
-    // Atualiza o contador de segundos passados a cada segundo
-    useEffect(() => {
-        setInterval(() => {
-            if (activeCycle) {
-                setAmountSecondsPassed(
-                    differenceInSeconds(new Date() , activeCycle.startDate)
-                );  // comparando as data com o date fns
-            }
-        }, 1000);
-
-    }, [activeCycle]);
-
-    // Função para lidar com a submissão do formulário
+    // Atualiza o estado dos ciclos adicionando o novo ciclo
+    setCycles((state) => [...state, newCycle])
+    // Define o novo ciclo como o ciclo ativo
+    setActiveCycleId(id)
+    // Reinicia a contagem de segundos passados
+    setAmountSecondsPassed(0)
+    // Reseta o formulário
+    reset()
+  }
    
-    
+  // Função para interromper o ciclo de trabalho
+  function handleInterruptCycle() {
+    // Atualiza o estado dos ciclos marcando o ciclo atual como interrompido
+    setCycles((state) =>
+      state.map((cycle) => {
+        if (cycle.id === activeCycleId) {
+          return { ...cycle, interruptedDate: new Date() }
+        } else {
+          return cycle
+        }
+      }),
+    )
+    // Define o ciclo ativo como nulo
+    setActiveCycleId(null)
+  }
 
-    // Calculando o tempo restante do ciclo ativo
-    const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0;
-    const currentSeconds = totalSeconds - amountSecondsPassed;
-    const minutes = String(Math.floor(currentSeconds / 60)).padStart(2, "0");
-    // função padstart: se não tiver 2 numeros ele coloca o 0
-    const seconds = String(currentSeconds % 60).padStart(2, "0");
+  // Função para atualizar a quantidade de segundos passados
+  function setSecondsPassed(seconds:number){
+    setAmountSecondsPassed(seconds)
+  }
 
-    // Obtendo o valor do campo 'task' do formulário
-    const task = watch("task");
+  // Obtém o valor do campo 'task' do formulário
+  const task = watch('task')
+  // Verifica se o botão de submissão do formulário deve estar desabilitado
+  const isSubmitDisable = !task
 
-    // Verificando se o campo 'task' está vazio
-    const isSubmitDisable = !task;
+  return (
+    <HomeContainer>
+      <form onSubmit={handleSubmit(handleCreateNewCycle)}>
+        {/* Fornecer o contexto dos ciclos de trabalho */}
+        <cycleContext.Provider value= {{activeCycle , activeCycleId, markCurrentCycleAsFinished,amountSecondsPassed,setSecondsPassed}}>
+          {/* Fornecer o estado e métodos do formulário de criação de novo ciclo */}
+          <FormProvider {...newCycleForm}>
+            {/* Renderizar o formulário de criação de novo ciclo */}
+            <NewCycleForm />
+          </FormProvider>
+          {/* Renderizar o componente de contagem regressiva */}
+          <Countdown/>
+        </cycleContext.Provider>
 
-    // Retornando a estrutura JSX do componente Home
-    return (
-        <HomeContainer>
-            {/* Formulário para inserção de dados */}
-            <form onSubmit={handleSubmit(handleCreateNewCycle)}>
-                <FormContainer>
-                    {/* Campo de entrada para o nome do projeto */}
-                    <label htmlFor="task">Vou Trabalhar em</label>
-                    <TaskInput
-                        type="text"
-                        id="task"
-                        placeholder="Nome para o seu projeto"
-                        list="task-suggestion"
-                        {...register("task")} // Espalha as propriedades retornadas pelo registro do campo "task"
-                    />
-                    {/* Sugestões de nomes de projeto */}
-                    <datalist id="task-suggestion">
-                        <option value="Projeto 1" />
-                        <option value="Projeto 2" />
-                        <option value="Projeto 3" />
-                        <option value="banana" />
-                    </datalist>
-
-                    {/* Campo de entrada para a quantidade de minutos */}
-                    <label htmlFor="minutesAmount">Durante</label>
-                    <MinutosAmountInput
-                        type="number"
-                        id="minutesAmount"
-                        min={5}
-                        max={60}
-                        step={5}
-                        placeholder="00"
-                        {...register("minutesAmount", { valueAsNumber: true })} // Espalha as propriedades retornadas pelo registro do campo "task"
-                    />
-                    <span>minutos</span>
-                </FormContainer>
-           
-                {/* Contador regressivo */}
-                <CountDownContainer>
-                    <span>{minutes[0]}</span>
-                    <span>{minutes[1]}</span>
-                    <Separator>:</Separator>
-                    <span>{seconds[0]}</span>
-                    <span>{seconds[1]}</span>
-                </CountDownContainer>
-
-                {/* Botão para iniciar a contagem regressiva */}
-                <StartCountDownButton disabled={isSubmitDisable} type="submit">
-                    <Play size={24} />
-                    Começar
-                </StartCountDownButton>
-            </form>
-        </HomeContainer>
-    );
+        {/* Renderizar botão para interromper ou começar o ciclo de trabalho */}
+        {activeCycle ? (
+          <StopCountDownButton onClick={handleInterruptCycle} type="button">
+            <HandPalm size={24} />
+            Interromper
+          </StopCountDownButton>
+        ) : (
+          <StartCountDownButton disabled={isSubmitDisable} type="submit">
+            <Play size={24} />
+            Começar
+          </StartCountDownButton>
+        )}
+      </form>
+    </HomeContainer>
+  )     
 }
