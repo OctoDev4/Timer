@@ -1,6 +1,12 @@
+import { useContext } from "react";
+import {formatDistanceToNow} from "date-fns";
+import {ptBR} from "date-fns/locale/pt-BR"
 import { HistoryContainer, HistoryList, Status } from "./styles";
+import { CycleContext } from "../../contexts/CyclesContexts";
 
  export function History() {
+
+  const {cycles} = useContext(CycleContext)
   return (
     <HistoryContainer>
       <h1>Meu histórico</h1>
@@ -16,38 +22,31 @@ import { HistoryContainer, HistoryList, Status } from "./styles";
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Tarefa</td>
-              <td>20 Minutos</td>
-              <td>há 2 meses</td>
+          {cycles.map(cycle=>{
+            return(
+              <tr key={cycle.id}>
+              <td>{cycle.task}</td>
+              <td>{cycle.minutesAmount}</td>
+              <td>{formatDistanceToNow(cycle.startDate,{
+                addSuffix:true,
+                locale:ptBR
+              })}</td>
               <td>
-                <Status statusColor="yellow">Concluido</Status>
+                {cycle.finishedDate && (
+                  <Status statusColor="green">Concluído</Status>
+                )}
+
+                {cycle.interruptedDate &&(
+                  <Status statusColor="red">Interrompido</Status>
+                )}
+
+                {(!cycle.finishedDate && !cycle.interruptedDate)&&(
+                  <Status statusColor="yellow">Em Andamento</Status>
+                )}
               </td>
             </tr>
-            <tr>
-              <td>Tarefa</td>
-              <td>20 Minutos</td>
-              <td>há 2 meses</td>
-              <td>
-                <Status statusColor="green">Concluido</Status>
-              </td>
-            </tr>
-            <tr>
-              <td>Tarefa</td>
-              <td>20 Minutos</td>
-              <td>há 2 meses</td>
-              <td>
-                <Status statusColor="red">Concluido</Status>
-              </td>
-            </tr>
-            <tr>
-              <td>Tarefa</td>
-              <td>20 Minutos</td>
-              <td>há 2 meses</td>
-              <td>
-                <Status statusColor="green">Concluido</Status>
-              </td>
-            </tr>
+            )
+          })}
           </tbody>
         </table>
       </HistoryList>

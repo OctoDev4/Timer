@@ -4,13 +4,14 @@ import { differenceInSeconds } from 'date-fns'
 import { useContext, useEffect} from 'react'
 // Importa estilos relacionados ao contador do arquivo styles.js
 import { CountDownContainer, Separator } from './styles'
+import { CycleContext } from '../../../../contexts/CyclesContexts'
 // Importa o contexto dos ciclos de trabalho
-import { cycleContext } from '../..'
+
 
 // Componente responsável por renderizar o contador regressivo do ciclo de trabalho
 export function Countdown() {
   // Obtém informações do ciclo de trabalho ativo do contexto
-  const {activeCycle,activeCycleId,markCurrentCycleAsFinished,amountSecondsPassed,setSecondsPassed} = useContext(cycleContext)
+  const {activeCycle,activeCycleId,markCurrentCycleAsFinished,amountSecondsPassed,setSecondsPassed} = useContext(CycleContext)
 
   // Calcula o total de segundos do ciclo de trabalho ativo
   const totalSeconds = activeCycle ? activeCycle.minutesAmount * 60 : 0
