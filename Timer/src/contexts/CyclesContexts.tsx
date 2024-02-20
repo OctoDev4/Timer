@@ -1,63 +1,54 @@
-import React, { ReactNode, createContext, useState } from "react";
+import React, { ReactNode, createContext, useReducer, useState } from "react";
+ // Certifique-se de importar Cycle e CyclesState corretamente
+import { ActionTypes, Cycle, CycleReducer} from "../reducers/cycles";
 
-interface Cycle {
-  id: string;
+interface CreateCycleData {
   task: string;
   minutesAmount: number;
-  startDate: Date;
-  interruptedDate?: Date;
-  finishedDate?: Date;
-}
-interface CreateCycleData{
-    task:string,
-    minutesAmount:number
-
 }
 
 interface CycleContextType {
-    cycles:Cycle[];
+  cycles: Cycle[];
   activeCycle: Cycle | undefined;
   activeCycleId: string | null;
   markCurrentCycleAsFinished: () => void;
   amountSecondsPassed: number;
   setSecondsPassed: (seconds: number) => void;
-  CreateNewCycle:(data:CreateCycleData)=>void;
-  interruptedCurrentCycle:()=>void
+  CreateNewCycle: (data: CreateCycleData) => void;
+  interruptedCurrentCycle: () => void;
 }
 
-interface CyclesContextProviderProps{
-    children:ReactNode
+interface CyclesContextProviderProps {
+  children: ReactNode;
 }
 
 export const CycleContext = createContext({} as CycleContextType);
 
 export function CyclesContextProvider({ children }: CyclesContextProviderProps) {
   // Estado para armazenar os ciclos de trabalho
-  const [cycles, setCycles] = useState<Cycle[]>([]);
-  // Estado para armazenar o ID do ciclo ativo
-  const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
+  const [cyclesState, dispatch] = useReducer(CycleReducer, { cycles: [], activeCycleId: null });
+
   // Estado para armazenar a quantidade de segundos passados
   const [amountSecondsPassed, setAmountSecondsPassed] = useState(0);
+
+  const { cycles, activeCycleId } = cyclesState;
 
   const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId);
 
   // Função para marcar o ciclo atual como terminado
   function markCurrentCycleAsFinished() {
-    // Atualiza o estado dos ciclos marcando o ciclo atual como terminado
-    setCycles((state) =>
-      state.map((cycle) => {
-        if (cycle.id === activeCycleId) {
-          return { ...cycle, finishedDate: new Date() };
-        } else {
-          return cycle;
-        }
-      })
-    );
+    dispatch({
+      type: ActionTypes.MARK_CURRENT_CYCLE_AS_FINISHED,
+      payload: {
+        activeCycleId
+      },
+    });
   }
 
   function setSecondsPassed(seconds: number) {
     setAmountSecondsPassed(seconds);
   }
+
   function CreateNewCycle(data: CreateCycleData) {
     // Gera um ID para o novo ciclo
     const id = String(new Date().getTime())
@@ -68,32 +59,26 @@ export function CyclesContextProvider({ children }: CyclesContextProviderProps) 
       minutesAmount: data.minutesAmount,
       startDate: new Date(),
     }
-    // Atualiza o estado dos ciclos adicionando o novo ciclo
-    setCycles((state) => [...state, newCycle])
-    // Define o novo ciclo como o ciclo ativo
-    setActiveCycleId(id)
+    dispatch({
+      type: ActionTypes.ADD_NEW_CYCLE,
+      payload: {
+        newCycle
+      }
+    });
+
     // Reinicia a contagem de segundos passados
-    setAmountSecondsPassed(0)
-    // Reseta o formulário
-   
-  }
-   
-  // Função para interromper o ciclo de trabalho
-  function interruptedCurrentCycle() {
-    // Atualiza o estado dos ciclos marcando o ciclo atual como interrompido
-    setCycles((state) =>
-      state.map((cycle) => {
-        if (cycle.id === activeCycleId) {
-          return { ...cycle, interruptedDate: new Date() }
-        } else {
-          return cycle
-        }
-      }),
-    )
-    // Define o ciclo ativo como nulo
-    setActiveCycleId(null)
+    setAmountSecondsPassed(0);
   }
 
+  // Função para interromper o ciclo de trabalho
+  function interruptedCurrentCycle() {
+    dispatch({
+      type: ActionTypes.INTERRUPT_CURRENT_CYCLE,
+      payload: {
+        activeCycleId
+      },
+    });
+  }
 
   return (
     <CycleContext.Provider
