@@ -1,6 +1,7 @@
 import React, { ReactNode, createContext, useReducer, useState } from "react";
  // Certifique-se de importar Cycle e CyclesState corretamente
-import { ActionTypes, Cycle, CycleReducer} from "../reducers/cycles";
+import { Cycle, CycleReducer} from "../reducers/cycles/reducer";
+import { ActionTypes, InterruptedCurrentCycleAction, addNewCycleAction, markCurrentCycleAsFinishedAction } from "../reducers/cycles/actions";
 
 interface CreateCycleData {
   task: string;
@@ -37,12 +38,7 @@ export function CyclesContextProvider({ children }: CyclesContextProviderProps) 
 
   // Função para marcar o ciclo atual como terminado
   function markCurrentCycleAsFinished() {
-    dispatch({
-      type: ActionTypes.MARK_CURRENT_CYCLE_AS_FINISHED,
-      payload: {
-        activeCycleId
-      },
-    });
+    dispatch(markCurrentCycleAsFinishedAction())
   }
 
   function setSecondsPassed(seconds: number) {
@@ -59,12 +55,7 @@ export function CyclesContextProvider({ children }: CyclesContextProviderProps) 
       minutesAmount: data.minutesAmount,
       startDate: new Date(),
     }
-    dispatch({
-      type: ActionTypes.ADD_NEW_CYCLE,
-      payload: {
-        newCycle
-      }
-    });
+    dispatch(addNewCycleAction(newCycle));
 
     // Reinicia a contagem de segundos passados
     setAmountSecondsPassed(0);
@@ -72,12 +63,7 @@ export function CyclesContextProvider({ children }: CyclesContextProviderProps) 
 
   // Função para interromper o ciclo de trabalho
   function interruptedCurrentCycle() {
-    dispatch({
-      type: ActionTypes.INTERRUPT_CURRENT_CYCLE,
-      payload: {
-        activeCycleId
-      },
-    });
+    dispatch(InterruptedCurrentCycleAction());
   }
 
   return (
